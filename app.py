@@ -1,4 +1,4 @@
-from flask import Flask, session, render_template, request, url_for, flash
+from flask import Flask, session, render_template, request, url_for, flash, redirect
 import  sqlite3
 from forms import RegistrationForm, LoginForm
 
@@ -30,14 +30,18 @@ def about():
     return render_template('about.html')
 
 
-@app.route("/register")
+@app.route("/register", methods=['GET', 'POST'])
 def register():
     registration_form = RegistrationForm()
-    return render_template('register.html', title = 'Register', registration_form = registration_form)
+    if registration_form.validate_on_submit():
+        flash(f'Account created for {registration_form.username.data}!', 'success')
+        return redirect(url_for('home'))
+    return render_template('register.html', title='Register', registration_form=registration_form)
 
-@app.route("/login")
+
+@app.route("/login", methods=['GET', 'POST'])
 def login():
-    login_form = RegistrationForm()
+    login_form = LoginForm()
     return render_template('login.html', title = 'Login', login_form = login_form)
 
 
