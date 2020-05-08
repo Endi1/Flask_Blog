@@ -1,10 +1,13 @@
 from flask import Flask, render_template, url_for, flash, redirect
 from forms import RegistrationForm, LoginForm
 import sqlite3
+from passlib.hash import sha256_crypt
 import datetime
+import pandas as pd
 
 
 app = Flask(__name__)
+
 app.config['SECRET_KEY'] = '5791628bb0b13ce0c676dfde280ba245'
 conn1 = sqlite3.connect('site.db', check_same_thread=False)
 cursor1 = conn1.cursor()
@@ -18,9 +21,9 @@ sql1 = '''CREATE TABLE IF NOT EXISTS User
 
 cursor1.execute(sql1)
 
-conn2 = sqlite3.connect('post.db', check_same_thread=False)
+conn2 = sqlite3.connect('post.db', check_same_thread= False)
 cursor2 = conn2.cursor()
-sql2 = '''CREATE TABLE Post
+sql2 = '''CREATE TABLE IF NOT EXISTS Post 
           (id INTEGER PRIMARY KEY AUTOINCREMENT,
           title VARCHAR(100),
           date_posted datetime default current_timestamp,
@@ -58,8 +61,25 @@ def about():
 def register():
     form = RegistrationForm()
     if form.validate_on_submit():
-        flash(f'Account created for {form.username.data}!', 'success')
-        return redirect(url_for('home'))
+        username = form.username.data
+        cursor1.execute("SELECT username FROM User WHERE username=? ", (username,))
+        username_fetched_from_db = cursor1.fetchone()
+        #take_username_fetched_from_tuple = pd.DataFrame(username_fetched_from_db)
+        #convert_username_in_list = take_username_fetched_from_tuple[0].tolist()
+
+        if username_fetched_from_db is None:
+            email = form.email.data
+            password = form.password.data
+            secure_password = sha256_crypt.encrypt(str(password))
+            sql1 = "INSERT INTO User (username, email, password) VALUES ('{}','{}','{}')".format(username, email,
+                                                                                                 secure_password)
+            cursor1.execute(sql1)
+            conn1.commit()
+            flash(f'Account created! You are now able to log in ', 'success')
+            return redirect(url_for('login'))
+        else:
+            flash('Username taken', 'danger')            
+            return redirect(url_for('register'))
     return render_template('register.html', title='Register', form=form)
 
 
