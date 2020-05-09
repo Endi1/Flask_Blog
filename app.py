@@ -1,9 +1,10 @@
 from flask import Flask, render_template, url_for, flash, redirect
+from flask import session
 from forms import RegistrationForm, LoginForm
 import sqlite3
 from passlib.hash import sha256_crypt
 import datetime
-import pandas as pd
+
 
 
 app = Flask(__name__)
@@ -93,13 +94,32 @@ def register():
 def login():
     form = LoginForm()
     if form.validate_on_submit():
-        if form.email.data == 'admin@blog.com' and form.password.data == 'password':
-            flash('You have been logged in!', 'success')
-            return redirect(url_for('home'))
+        email_login = form.email.data
+        password_login = form.password.data
+        cursor1.execute("SELECT email FROM User WHERE email=?", (email_login,))
+        email_fetched = cursor1.fetchone()
+        cursor1.execute("SELECT email FROM User WHERE email=?", (password_login,))
+        password_fetched = cursor1.fetchone()
+        if not email_fetched :
+            flash("Email does not exists", "danger")
+            return redirect(url_for("login"))
         else:
-            flash('Login Unsuccessful. Please check username and password', 'danger')
+            for password_fetched_index in password_fetched:
+                if sha256_crypt.verify(password_login, password_fetched_index):
+                    session['log'] = True
+                    flash('You are now Logged In', 'success')
+                    return redirect(url_for('home'))
+                else:
+                    flash('Incorrect password', 'danger')
+                    return redirect(url_for('login'))
+
     return render_template('login.html', title='Login', form=form)
 
+@app.route('/logout')
+def logout():
+    session.clear()
+    flash('You have been logged out')
+    return redirect(url_for('home'))
 
 if __name__ == '__main__':
     app.run(debug=True)
@@ -107,4 +127,3 @@ if __name__ == '__main__':
 
 conn2.close()
 conn1.close()
-
