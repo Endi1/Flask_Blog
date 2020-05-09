@@ -64,11 +64,13 @@ def register():
         username = form.username.data
         cursor1.execute("SELECT username FROM User WHERE username=? ", (username,))
         username_fetched_from_db = cursor1.fetchone()
+        email = form.email.data
+        cursor1.execute("SELECT email FROM User WHERE email=? ", (email,))
+        email_fetched_from_db = cursor1.fetchone()
         #take_username_fetched_from_tuple = pd.DataFrame(username_fetched_from_db)
         #convert_username_in_list = take_username_fetched_from_tuple[0].tolist()
 
-        if username_fetched_from_db is None:
-            email = form.email.data
+        if not username_fetched_from_db and email_fetched_from_db:
             password = form.password.data
             secure_password = sha256_crypt.encrypt(str(password))
             sql1 = "INSERT INTO User (username, email, password) VALUES ('{}','{}','{}')".format(username, email,
@@ -78,8 +80,12 @@ def register():
             flash(f'Account created! You are now able to log in ', 'success')
             return redirect(url_for('login'))
         else:
-            flash('Username taken', 'danger')            
-            return redirect(url_for('register'))
+            if username_fetched_from_db:
+                flash('Username taken', 'danger')
+                return redirect(url_for('register'))
+            elif email_fetched_from_db:
+                flash("Email taken", 'danger')
+                return redirect(url_for('register'))
     return render_template('register.html', title='Register', form=form)
 
 
