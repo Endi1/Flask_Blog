@@ -61,33 +61,48 @@ def about():
 @app.route("/register", methods=['GET', 'POST'])
 def register():
     form = RegistrationForm()
+
     if form.validate_on_submit():
         username = form.username.data
         cursor1.execute("SELECT username FROM User WHERE username=? ", (username,))
         username_fetched_from_db = cursor1.fetchone()
+
         email = form.email.data
         cursor1.execute("SELECT email FROM User WHERE email=? ", (email,))
         email_fetched_from_db = cursor1.fetchone()
+
         #take_username_fetched_from_tuple = pd.DataFrame(username_fetched_from_db)
         #convert_username_in_list = take_username_fetched_from_tuple[0].tolist()
 
-        if not username_fetched_from_db and email_fetched_from_db:
-            password = form.password.data
-            secure_password = sha256_crypt.encrypt(str(password))
-            sql1 = "INSERT INTO User (username, email, password) VALUES ('{}','{}','{}')".format(username, email,
-                                                                                                 secure_password)
-            cursor1.execute(sql1)
-            conn1.commit()
-            flash(f'Account created! You are now able to log in ', 'success')
-            return redirect(url_for('login'))
-        else:
-            if username_fetched_from_db:
-                flash('Username taken', 'danger')
-                return redirect(url_for('register'))
-            elif email_fetched_from_db:
-                flash("Email taken", 'danger')
-                return redirect(url_for('register'))
+        if username_fetched_from_db or email_fetched_from_db:
+            return _handle_account_exists(username_fetched_from_db, email_fetched_from_db)
+
+        password = form.password.data
+        return _handle_create_db_entry(username, email, password)
+
     return render_template('register.html', title='Register', form=form)
+
+def _handle_account_exists(username, email):
+    messages = []
+    if username:
+        messages.append('Username taken')
+    elif email:
+        messages.append('Email taken')
+
+    message = "\n".join([str(m) for m in messages])
+    flash(message, 'danger')
+    return redirect(url_for('register'))
+
+def _handle_create_db_entry(username, email, password):
+    secure_password = sha256_crypt.encrypt(str(password))
+    sql1 = "INSERT INTO User (username, email, password) VALUES ('{}','{}','{}')".format(
+        username, email, secure_password
+    )
+    cursor1.execute(sql1)
+    conn1.commit()
+    flash(f'Account created! You are now able to log in ', 'success')
+    return redirect(url_for('login'))
+
 
 
 @app.route("/login", methods=['GET', 'POST'])
@@ -100,7 +115,7 @@ def login():
         email_fetched = cursor1.fetchone()
         cursor1.execute("SELECT email FROM User WHERE email=?", (password_login,))
         password_fetched = cursor1.fetchone()
-        if not email_fetched :
+        if not email_fetched:
             flash("Email does not exists", "danger")
             return redirect(url_for("login"))
         else:
